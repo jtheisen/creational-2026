@@ -1,0 +1,27 @@
+node_modules/
+.pnpm-store/
+dist/
+*.tsbuildinfo
+.DS_Store
+
+# Reference sources are local, read-only inputs; retain their index.
+refsrc/*
+!refsrc/INDEX.md
+
+# Downloaded source data, browser tooling, and temporary agent artifacts.
+agents/TEMP/
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# Local configuration and editor files.
+.env
+.env.*
+!.env.example
+!.env.*.example
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
