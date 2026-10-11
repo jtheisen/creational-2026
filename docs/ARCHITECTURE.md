@@ -40,6 +40,9 @@
 - `src/views/registry.ts` lists comparison views. Add a view component and registry entry to introduce a variation.
 - The application shell owns URL taxon location, depth, branch page, and viewport capacity. Views use the same source-derived graph and direct navigation callback.
 - Branch widths describe the visible retained hierarchy. Retained child/descendant counts describe the subset; `sourceChildCount` reports direct children in the complete source and exposes subset boundaries.
+- Width comparison adds a cached loaded-terminal count per taxon. A loaded terminal counts as one even at a subset boundary; an internal count is the sum of its loaded children. These weights do not change with displayed depth.
+- Loaded-leaf mode allocates each visible frontier column its complete loaded-subtree terminal count. Normalize those weights within the current branch page and clip ancestor spans to that page. The existing equal visible-frontier column mode remains selectable.
+- Keep width mode in the URL with taxon, view, depth, and page. Very thin proportional blocks must not acquire inflated minimum widths; provide full accessible labels and a bounded alternative taxon navigation control.
 
 ## Quality Direction
 

@@ -21,7 +21,7 @@ export let DEFAULT_FOCUS = "";
 export function initializeTaxonomy(data: TaxonomyData) {
   taxa = data.nodes;
   provenance = data.provenance;
-  byId.clear(); childIndex.clear(); countIndex.clear();
+  byId.clear(); childIndex.clear(); countIndex.clear(); leafIndex.clear();
   for (const taxon of taxa) byId.set(taxon.id, taxon);
   for (const taxon of taxa) {
     if (!taxon.parentId) continue;
@@ -32,7 +32,7 @@ export function initializeTaxonomy(data: TaxonomyData) {
   ROOT_ID = taxa.find((t) => t.parentId === null)!.id;
   DEFAULT_FOCUS = typeof provenance.defaultFocusId === "string" && byId.has(provenance.defaultFocusId)
     ? provenance.defaultFocusId : ROOT_ID;
-  countBranch(ROOT_ID);
+  countBranches(ROOT_ID);
   for (const siblings of childIndex.values()) siblings.sort((a, b) => descendantCount(b.id) - descendantCount(a.id) || a.name.localeCompare(b.name));
 }
 let loading: Promise<void> | undefined;
@@ -64,13 +64,22 @@ export function descendants(id: string): Taxon[] {
   return result;
 }
 const countIndex = new Map<string, number>();
-function countBranch(id: string): number {
-  const cached = countIndex.get(id);
-  if (cached !== undefined) return cached;
-  const count = children(id).reduce((n, child) => n + 1 + countBranch(child.id), 0);
-  countIndex.set(id, count);
-  return count;
+const leafIndex = new Map<string, number>();
+// Iterative postorder keeps initialization linear and avoids call-stack limits.
+function countBranches(rootId: string) {
+  const order = [rootId];
+  for (let i = 0; i < order.length; i++) {
+    for (const child of children(order[i])) order.push(child.id);
+  }
+  for (let i = order.length - 1; i >= 0; i--) {
+    const id = order[i];
+    const next = children(id);
+    countIndex.set(id, next.reduce((sum, child) => sum + 1 + (countIndex.get(child.id) ?? 0), 0));
+    leafIndex.set(id, next.length ? next.reduce((sum, child) => sum + (leafIndex.get(child.id) ?? 0), 0) : 1);
+  }
 }
+export function loadedLeafCount(id: string) { return leafIndex.get(id) ?? 0; }
+export type WidthMode = "leaves" | "visible";
 export function descendantCount(id: string) { return countIndex.get(id) ?? 0; }
 export interface BranchSpan { taxon: Taxon; start: number; end: number; depth: number; }
 export function branchSpans(id: string, maxDepth: number) {
@@ -88,14 +97,30 @@ export function branchSpans(id: string, maxDepth: number) {
   if (root) walk(root, 0);
   return { spans, columns: column };
 }
-export function branchWindow(id: string, depth: number, page: number, capacity: number) {
+export function branchWindow(id: string, depth: number, page: number, capacity: number, widthMode: WidthMode = "leaves") {
   const layout = branchSpans(id, depth);
   const size = Math.max(1, Math.floor(capacity));
   const pages = Math.max(1, Math.ceil(layout.columns / size));
   const currentPage = Math.max(0, Math.min(pages - 1, page));
   const start = currentPage * size;
   const end = Math.min(layout.columns, start + size);
-  return { ...layout, pages, page: currentPage, start, end,
+  const frontier = layout.spans;
+  const weights = Array<number>(layout.columns).fill(1);
+  // Every displayed frontier ends traversal, even if its loaded subtree continues.
+  for (const span of frontier) {
+    if (span.depth === depth || !children(span.taxon.id).length) {
+      weights[span.start] = widthMode === "leaves" ? loadedLeafCount(span.taxon.id) : 1;
+    }
+  }
+  const offsets = [0];
+  for (let column = start; column < end; column++) offsets.push(offsets.at(-1)! + weights[column]);
+  const totalWeight = offsets.at(-1)!;
+  function geometry(span: Pick<BranchSpan, "start" | "end">) {
+    const left = offsets[Math.max(span.start, start) - start] / totalWeight;
+    const right = offsets[Math.min(span.end, end) - start] / totalWeight;
+    return { left, width: right - left };
+  }
+  return { ...layout, pages, page: currentPage, start, end, weights, totalWeight, geometry, widthMode,
     visible: layout.spans.filter((span) => span.end > start && span.start < end) };
 }
 export function branchColor(id: string, focusId: string) {

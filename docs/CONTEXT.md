@@ -22,6 +22,7 @@
 - Iteration 2 uses a specific taxon as the browser location. Clicking another taxon navigates directly to it; browser back and forward restore the location.
 - Use an application viewport without page or panel scrolling. Show a bounded local neighborhood and explicit controls for additional branches.
 - Replace the hand-curated demonstration with source-derived records so browsing has meaningful scale. Show release, selection rules, and source/subset counts honestly.
+- Iteration 3 compares block widths based on all terminal taxa in each loaded subtree with the existing visible-frontier sizing. The loaded-leaf mode includes descendants below the displayed depth; preserve both modes for experimentation.
 
 - First optimize the interactive browsing experience.
 - Find a useful subset of the source taxonomy instead of displaying the complete tree.

@@ -1,6 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, afterEach, describe, expect, it } from "vitest";
 import sourceFixture from "../data/taxonomy.json";
-import { ancestors, initializeTaxonomy, branchSpans, branchWindow, byId, children, DEFAULT_FOCUS, descendantCount, provenance, ROOT_ID, taxa } from "./taxonomy";
+import { ancestors, initializeTaxonomy, branchSpans, branchWindow, byId, children, DEFAULT_FOCUS, descendantCount, provenance, ROOT_ID, taxa, loadedLeafCount } from "./taxonomy";
 beforeAll(() => initializeTaxonomy(sourceFixture));
 describe("source-derived connected taxonomy", () => {
   it("has real stable identities and complete original parent paths", () => {
@@ -64,5 +64,61 @@ describe("bounded local branch window", () => {
     const window = branchWindow(terminal.id, 5, 0, 5);
     expect(window.columns).toBe(1);
     expect(window.visible.map((entry) => entry.taxon.id)).toEqual([terminal.id]);
+  });
+});
+
+const asymmetric = {
+  provenance: {},
+  nodes: [
+    { id: "root", name: "Root", rank: "root", parentId: null },
+    { id: "large", name: "Large", rank: "group", parentId: "root" },
+    { id: "small", name: "Small", rank: "group", parentId: "root", sourceChildCount: 20 },
+    ...[1, 2, 3].map((i) => ({ id: `leaf${i}`, name: `Leaf ${i}`, rank: "leaf", parentId: "large" })),
+  ],
+};
+describe("full loaded-subtree leaf widths", () => {
+  afterEach(() => initializeTaxonomy(sourceFixture));
+  it("counts loaded boundaries as one and resets both caches on initialization", () => {
+    initializeTaxonomy(asymmetric);
+    expect(loadedLeafCount("root")).toBe(4);
+    expect(loadedLeafCount("small")).toBe(1);
+    initializeTaxonomy({ provenance: {}, nodes: [asymmetric.nodes[0]] });
+    expect(loadedLeafCount("root")).toBe(1);
+    expect(loadedLeafCount("large")).toBe(0);
+    expect(descendantCount("root")).toBe(0);
+  });
+  it("uses hidden descendants at depth one, while visible mode retains equal columns", () => {
+    initializeTaxonomy(asymmetric);
+    const weighted = branchWindow("root", 1, 0, 10, "leaves");
+    const visible = branchWindow("root", 1, 0, 10, "visible");
+    const large = weighted.visible.find((span) => span.taxon.id === "large")!;
+    expect(weighted.geometry(large).width).toBe(0.75);
+    expect(visible.geometry(large).width).toBe(0.5);
+    expect(loadedLeafCount("large")).toBe(3);
+    expect(branchWindow("large", 3, 0, 10).totalWeight).toBe(3);
+  });
+  it("conserves parent spans and normalizes only frontier weights on a clipped page", () => {
+    initializeTaxonomy(asymmetric);
+    const page = branchWindow("root", 2, 1, 2, "leaves");
+    expect(page.start).toBe(2);
+    expect(page.totalWeight).toBe(2);
+    const ancestor = page.visible.find((span) => span.taxon.id === "large")!;
+    expect(loadedLeafCount(ancestor.taxon.id)).toBe(3);
+    expect(page.geometry(ancestor).width).toBe(0.5);
+    expect(page.geometry(page.visible[0]).width).toBe(1);
+    for (const parent of page.visible) {
+      const next = page.visible.filter((span) => span.taxon.parentId === parent.taxon.id);
+      if (next.length) expect(next.reduce((sum, span) => sum + page.geometry(span).width, 0)).toBeCloseTo(page.geometry(parent).width);
+    }
+  });
+  it("matches source terminal totals and conserves each source parent leaf count", () => {
+    expect(loadedLeafCount(ROOT_ID)).toBe(50777);
+    for (const taxon of taxa) {
+      const next = children(taxon.id);
+      expect(loadedLeafCount(taxon.id)).toBe(next.length ? next.reduce((sum, child) => sum + loadedLeafCount(child.id), 0) : 1);
+    }
+    const page = branchWindow(ROOT_ID, 1, 0, 10);
+    expect(page.weights).toEqual([50775, 1, 1]);
+    expect(page.geometry(page.visible[1]).width).toBeCloseTo(50775 / 50777);
   });
 });

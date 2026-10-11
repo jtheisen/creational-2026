@@ -2,6 +2,15 @@
 
 ## Taxonomy Experiments
 
+### Iteration 3
+
+- Added default Loaded leaves width mode: block weights count all terminal records beneath each loaded taxon, independently of displayed depth. Dataset total is 50,777 loaded leaves; Mammalia has 20,760.
+- Preserved Visible branches sizing under a URL-backed control in both views. Switching keeps taxon, depth, and page; browser history restores width mode.
+- Pagination remains frontier-based. Loaded-leaf weights are normalized within each page, with ancestor spans clipped to its columns.
+- Thin blocks retain true proportions without minimum widths. Full accessible labels and the shown-taxon selector keep navigation available. Compact-height cards prioritize readable taxon names.
+- Build/type checks and ten domain tests pass. Independent review matched every node's cached leaf count, passed 216 conservation checks and 24 viewport/view/mode layouts, then verified eight compact-height cases after a label-clipping fix.
+- Source data and preparation pipeline are unchanged. Iteration 3 is validated and delivered.
+
 ### Iteration 2
 
 - Current browsing uses a stable OTT taxon ID in the URL and direct node navigation with back/forward, ancestor, parent, and root actions.

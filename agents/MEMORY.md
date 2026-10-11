@@ -22,3 +22,5 @@
 
 - A small hand-curated fixture verifies components but cannot validate large-tree navigation. Report zero imported source records when that is the case, and use source-derived data for browsing experiments.
 - The reference's core interaction is taxon-as-location with direct node navigation and local descendant windows. A separate inspect-then-explore action and a scrolling editorial page diverge from that interaction.
+- No-scroll checks must also inspect readable card names at short viewport heights. Overflow can be hidden while stacked labels clip; compact layouts should suppress secondary labels and retain full accessible names/tooltips.
+- Loaded-leaf widths must count terminal records across the full loaded subtree, not depth-truncated frontier records. Subset boundaries still count as one loaded leaf; omitted source children do not contribute.
